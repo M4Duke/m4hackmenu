@@ -1,4 +1,4 @@
-HACK menu (an NMI trigger menu for M4 board)
+HACK menu (an NMI triggered menu for M4 board)
 
 Written by Duke 2018/2019 - http://www.spinpoint.org
 
