@@ -1440,13 +1440,19 @@ vsync:	in a,(c)
 		jp nz, skip_frame
 		
 		; only update every so often
-		
 		xor a
 		ld (frame_count),a
 		
+
+        call check_menu_keys
+        or a
+        jr z,up_down
+        dec a                   ; return 1-6 instead of expected 0-5
+        jr press_registered
+
 		; check if UP/DOWN is pressed
-		
-		ld a,(keymap+9)
+up_down:
+        ld a,(keymap+9)
 		and 2		; joy down
 		jr z,is_down
 		ld a,(keymap+0)
@@ -1799,17 +1805,17 @@ not_dispmem:
 		cp #5
 		jr z, exit_menu
 		
-		
+					
 		
 	
 		
 not_fire:
 	
 		jp mainloop
-exit_menu:
+exit_menu:		
 		
 		ret
-		
+
 		; wait for return/enter/space key to be pressed and de-pressed
 wait_return:
 wait_save_key_press:
@@ -2807,8 +2813,45 @@ next_line:
 		ld	d,a	
 		ret
 
+check_menu_keys:        
+        push bc
+        ld c,1
+        ld a,(keymap+7)
+        and 16              ; S
+        jr z,menu_key_pressed
+        inc c
+        ld a,(keymap+4)
+        and 16              ; L
+        jr z,menu_key_pressed
+        inc c
+        ld a,(keymap+7)
+        and 64              ; C
+        jr z,menu_key_pressed
+        inc c
+        ld a,(keymap+3)
+        and 8               ; P
+        jr z,menu_key_pressed
+        inc c
+        ld a,(keymap+7)
+        and 32              ; D
+        jr z,menu_key_pressed
+        inc c
+        ld a,(keymap+6)
+        and 4               ; R
+        jr z,menu_key_pressed
+        xor a               ; no menu key pressed
+        pop bc
+        ret
+menu_key_pressed:        
+        ; TODO check that keyboard key is released!
+        ld a,c
+        pop bc
+        ret
+
 txt_title:
-		db "M4 Hack Menu / Duke 2018",0
+		db "M4 Hack Menu / Duke "
+        TIMESTAMP
+        db 0
 			
 txt_z80regs:
 		db "Z80 regs",0
@@ -2836,12 +2879,12 @@ txt_64KB:
 txt_128KB:
 		db "Dump size: 128KB",0
 txt_menu:
-		db "Save snapshot",0
-		db "Load snapshot",0
-		db "Change dump size",0
-		db "Pokes...",0
-		db "Display memory",0
-		db "Resume",0
+		db "(S)ave snapshot",0
+		db "(L)oad snapshot",0
+		db "(C)hange dump size",0
+		db "(P)okes...",0
+		db "(D)isplay memory",0
+		db "(R)esume",0
 txt_filename:
 		db "Enter filename: ",0
 txt_save:
@@ -2853,7 +2896,7 @@ txt_qwerty:
 txt_azerty:
 		db "Keyboard: AZERTY",0
 txt_success:
-		db "  Succes!",0
+		db "  Success!",0
 txt_failed:
 		db "  Failed!",0
 txt_address:
