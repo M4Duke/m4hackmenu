@@ -1443,12 +1443,23 @@ vsync:	in a,(c)
 		xor a
 		ld (frame_count),a
 		
-
+        ; return 1 to 6 for each menu entry, 0 if no menu key pressed
         call check_menu_keys
         or a
         jr z,up_down
-        dec a                   ; return 1-6 instead of expected 0-5
-        jr press_registered
+        dec a
+        ld (ypos),a
+        call clear_pointer
+        jp z,save_snap
+        dec a
+        jp z,load_snap
+        dec a
+        jp z,change_dumpsz
+        dec a
+        jp z,pokes
+        dec a
+        jp z,dispmem
+        ret
 
 		; check if UP/DOWN is pressed
 up_down:
@@ -1485,22 +1496,8 @@ not_top_item:
 not_up:		
 			jr draw_pointer
 press_registered:
-		ld (ypos),a	
-		
-		; delete last "pointer"
-		ld de,(last_scr_y)
-		push de
-		ld a,' '
-		call write_char
-		pop de
-		inc de
-		push de
-		ld a,' '
-		call write_char
-		pop de
-		inc de
-		ld a,' '
-		call write_char
+		ld (ypos),a		
+        call clear_pointer
 	
 draw_pointer:
 		ld de,0xC000 + 15*80 + 30
@@ -1562,6 +1559,7 @@ is_fire:
 		ld a,(ypos)
 		cp #0
 		jr nz, not_save_snap
+save_snap:
 		call clear_lines
 		ld hl,txt_filename
 		ld de,(0<<8)|23
@@ -1604,6 +1602,7 @@ save_done:
 not_save_snap:
 		cp #1
 		jr nz, not_load_snap
+load_snap:
 		call clear_lines
 		ld hl,txt_filename
 		ld de,(0<<8)|23
@@ -1648,7 +1647,7 @@ not_load_snap:
 		cp #2
 		jr nz, not_change_dumpsz
 		
-
+change_dumpsz:
 		ld a,(memdump_sz)
 		cp 0x40
 		jr nz, not_set_64
@@ -1671,7 +1670,7 @@ not_change_dumpsz:
 		jp nz, not_pokes
 		call clear_lines
 		
-		ld ix,temp_buf2
+pokes:	ld ix,temp_buf2
 		xor a
 		ld (poke_count),a
 poke_loop:
@@ -1759,10 +1758,12 @@ poke_done:
 		call wait_return
 		call clear_lines
 		jr not_fire
+
 not_pokes:
 		cp #4			; disp mem
 		jr nz, not_dispmem
-		ld hl,txt_address
+dispmem:
+        ld hl,txt_address
 		ld de,(0<<8)|23
 		call disp_text
 		ld iy,key_poke_translate
@@ -1805,16 +1806,13 @@ not_dispmem:
 		cp #5
 		jr z, exit_menu
 		
-					
-		
-	
-		
 not_fire:
-	
 		jp mainloop
-exit_menu:		
-		
+
+exit_menu:				
 		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 		; wait for return/enter/space key to be pressed and de-pressed
 wait_return:
@@ -2846,6 +2844,26 @@ menu_key_pressed:
         ; TODO check that keyboard key is released!
         ld a,c
         pop bc
+        ret
+
+clear_pointer:
+        push de
+        push af        
+		ld de,(last_scr_y)
+		push de
+		ld a,' '
+		call write_char
+		pop de
+		inc de
+		push de
+		ld a,' '
+		call write_char
+		pop de
+		inc de
+		ld a,' '
+		call write_char
+        pop af
+        pop de
         ret
 
 txt_title:
