@@ -2375,13 +2375,10 @@ conv_hex:
 		ld e,a
 		ret
 
-keyscan:
-		
+keyscan:		
 		push hl
 		push bc
-		push de
-		
-
+		push de		
 		ld hl,keymap    ;3
         ld bc,0xf782     ;3
         out (c),c       ;4
@@ -2405,13 +2402,33 @@ kloop:  ld b,d          ;1
         cp c            ;1
         jr c,kloop       ;2/3 9*16+1*15=159
         ld bc,0xf782     ;3
-        out (c),c       ;4
-
-		
+        out (c),c       ;4		
         pop de
 		pop bc
 		pop hl
         ret
+
+check_nokeypressed:
+        push hl
+        push bc
+        push af
+nokey_init:
+        ld hl,keymap
+        ld b,10
+nokey_loop:
+        ld a,(hl)
+        cp 0xff
+        jr nz,wait_key_released
+        inc hl
+        djnz nokey_loop
+        pop af
+        pop bc
+        pop hl
+        ret
+wait_key_released:
+        call keyscan
+        jr nokey_init
+
 		; hl = text
 		; e = line
 		; d = column
@@ -2840,8 +2857,8 @@ check_menu_keys:
         xor a               ; no menu key pressed
         pop bc
         ret
-menu_key_pressed:        
-        ; TODO check that keyboard key is released!
+menu_key_pressed:
+        call check_nokeypressed
         ld a,c
         pop bc
         ret
