@@ -30,16 +30,47 @@ ACKPORT                     equ 0xFC00
 
 ; screen layout (column<<8)|line
 L_MAINTITLE                 equ (29<<8)|0
-L_Z80TITLE                  equ (8<<8)|2
+L_Z80_REGSTITLE             equ (8<<8)|2
+L_Z80_REGS_X                equ 0
+L_Z80_REGS_Y                equ 4
+
+L_HW_REGS_X                 equ 24
+L_HW_REGS_Y                 equ 2
+
+L_HW_REGSHEADER             equ (L_HW_REGS_X+6<<8)|L_HW_REGS_Y
+L_HW_REGS                   equ (L_HW_REGS_X<<8)|L_HW_REGS_Y+2
+
+L_HW_RMR_MMR_ROM_X          equ 24
+L_HW_RMR_MMR_ROM_Y          equ 8
+
+L_HW_PPI_X                  equ 38
+L_HW_PPI_Y                  equ 8
+
+L_KEYBOARDTYPE              equ (52<<8)|8
+
 L_MENU_X                    equ 0
 L_MENU_Y                    equ 13
 L_MENU                      equ (L_MENU_X+3<<8)|L_MENU_Y
-L_SAVESNAPSHOT              equ (0<<8)|23
-L_LOADSNAPSHOT              equ (0<<8)|23
-L_DUMPSIZE                  equ (L_MENU_X+3+20<<8)|L_MENU_Y+2
-L_POKEADDRESS               equ (0<<8)|23
-L_DISPMEM                   equ (0<<8)|23
 
+L_SAVESNAPSHOT              equ (0<<8)|23
+I_SAVESNAPSHOT              equ (16<<8)|60	; xpos=16, max_len = 60
+L_SAVING                    equ (0<<8)|24
+
+L_LOADSNAPSHOT              equ (0<<8)|23
+I_LOADSNAPSHOT              equ (16<<8)|60	; xpos=16, max_len = 60
+L_LOADING                   equ (0<<8)|24
+
+L_DUMPSIZE                  equ (L_MENU_X+3+20<<8)|L_MENU_Y+2
+
+L_POKEADDRESS               equ (0<<8)|23
+I_POKEADDRESS               equ (6<<8)|4	; xpos=6, max_len = 4
+L_POKEVAL                   equ (12<<8)|23
+I_POKEVAL                   equ (17<<8)|2	; xpos=16, max_len = 2
+L_POKEAPPLIED               equ (0<<8)|24
+
+L_DISPMEM                   equ (0<<8)|23
+I_DISPMEM                   equ (6<<8)|4	; xpos=6, max_len = 4
+L_DISPMEMDUMP               equ (0<<8)|24
 
 		org	0x0
 m4romnum: db 6
@@ -1124,6 +1155,7 @@ interface:
 		ld de,0xC001
 		ld bc,0x3FEF
 		ldir
+
 		ld	hl,0 ; 10*8*2
 		ld (keyb_layout_offset),hl
 		
@@ -1131,40 +1163,37 @@ interface:
 		ld	de,L_MAINTITLE
 		call disp_text
 		
-		; Display all z80 registers
-		
+		; Display all z80 registers		
 		ld hl,txt_z80regs
-		ld de,L_Z80TITLE
+		ld de,L_Z80_REGSTITLE
 		call disp_text
 
 		ld ix,temp_buf			; use some temp ram area
-		
 
 		ld hl,txt_regs1
-		ld de,(0<<8)|4
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y
 		ld iy,cpu_regs
 		ld b,4
 		call disp_regs			; display AF, BC, DE, HL
 		
-		ld de,(0<<8)|8
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+4
 		ld iy,sna_header+0x21	; point to SP
 		ld b,2
 		call disp_regs			; display SP, PC
 		
-		ld de,(11<<8)|4
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y
 		ld b,4
 		inc iy					; point to alt AF....
 		call disp_regs			; display alt AF, BC, DE, HL
 		
-		ld de,(11<<8)|8
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+4
 		ld iy,sna_header+0x1D	; point to IX
 		ld b,2
 		call disp_regs			; display IX,IY
 		
-		; display 8 bit regs R, I
-		
+		; display 8 bit regs R, I		
 		ld	hl,txt_r
-		ld de,(0<<8)|10
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+6
 		call disp_text
 		ld a,(sna_header+0x19)
 		call conv_hex
@@ -1172,46 +1201,45 @@ interface:
 		ld (ix+1),e
 		ld (ix+2),0
 		ld	hl,temp_buf
-		ld de,(7<<8)|10
+		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+6
 		call disp_text
 		
 		ld	hl,txt_i
-		ld de,(11<<8)|10
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+6
 		call disp_text
 		ld a,(sna_header+0x1A)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(18<<8)|10
+		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+6
 		call disp_text
 		
-		; Display interrupt mode
-		
+		; Display interrupt mode		
 		ld	hl,txt_im
-		ld de,(0<<8)|11
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+7
 		call disp_text
 		ld a,(sna_header+0x25)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(7<<8)|11
+		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+7
 		call disp_text
 		
 		ld	hl,txt_ints
-		ld de,(11<<8)|11
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+7
 		call disp_text
 		ld a,(sna_header+0x1B)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(18<<8)|11
+		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+7
 		call disp_text
-		
+
 		; Display header columns 0 - 0x10
-		ld de,(30<<8)|2
+		ld de,L_HW_REGSHEADER
 		ld	hl,temp_buf
 		ld b,0x11
 		xor a
@@ -1240,46 +1268,45 @@ columns:
 		
 		; display Palette, PSG, CRTC		
 		ld hl,txt_pal
-		ld de,(24<<8)|4
+		ld de,L_HW_REGS
 		call disp_text
 		inc hl
-		ld de,(24<<8)|5
+		ld de,L_HW_REGS+1
 		call disp_text
 		inc hl
-		ld de,(24<<8)|6
+		ld de,L_HW_REGS+2
 		call disp_text
 		
 		; Display palette		
 		ld hl,temp_buf
 		
-		ld de,(30<<8)|4
+		ld de,L_HW_REGSHEADER+2
 		ld b,0x11
 		ld a,(ga_pen)
 		ld iy,palette
 		call disp_columns
 		
-		ld de,(30<<8)|5
+		ld de,L_HW_REGSHEADER+3
 		ld b,0x10
 		ld a,(psg_sel)
 		ld iy,psg_regs
 		call disp_columns
 		
-		ld de,(30<<8)|6
+		ld de,L_HW_REGSHEADER+4
 		ld b,0x10
 		ld a,(crtc_sel)
 		ld iy,crtc_regs
 		call disp_columns
 		
 		; display RMR, MMR, ROM (sel)
-		
 		ld hl,txt_rmr
-		ld de,(24<<8)|8
+		ld de,(L_HW_RMR_MMR_ROM_X<<8)|L_HW_RMR_MMR_ROM_Y
 		call disp_text
 		inc hl
-		ld de,(24<<8)|9
+		ld de,(L_HW_RMR_MMR_ROM_X<<8)|L_HW_RMR_MMR_ROM_Y+1
 		call disp_text
 		inc hl
-		ld de,(24<<8)|10
+		ld de,(L_HW_RMR_MMR_ROM_X<<8)|L_HW_RMR_MMR_ROM_Y+2
 		call disp_text
 		
 		; disp values
@@ -1289,7 +1316,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(30<<8)|8
+		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y
 		call disp_text
 		
 		ld a,(ramconf)
@@ -1297,7 +1324,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(30<<8)|9
+		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y+1
 		call disp_text
 		
 		ld a,(romsel)
@@ -1305,22 +1332,21 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(30<<8)|10
+		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y+2
 		call disp_text
 		
 		; Display PPIA,B,C, PPICTRL
-		
 		ld hl,txt_ppi
-		ld de,(38<<8)|8
+		ld de,(L_HW_PPI_X<<8)|L_HW_PPI_Y
 		call disp_text
 		inc hl
-		ld de,(38<<8)|9
+		ld de,(L_HW_PPI_X<<8)|L_HW_PPI_Y+1
 		call disp_text
 		inc hl
-		ld de,(38<<8)|10
+		ld de,(L_HW_PPI_X<<8)|L_HW_PPI_Y+2
 		call disp_text
 		inc hl
-		ld de,(38<<8)|11
+		ld de,(L_HW_PPI_X<<8)|L_HW_PPI_Y+3
 		call disp_text
 		
 		; disp PPI values
@@ -1330,7 +1356,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(44<<8)|8
+		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y
 		call disp_text
 		
 		ld a,(ppiB)
@@ -1338,7 +1364,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(44<<8)|9
+		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+1
 		call disp_text
 		
 		ld a,(ppiC)
@@ -1346,7 +1372,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(44<<8)|10
+		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+2
 		call disp_text
 		
 		ld a,(ppiCtrl)
@@ -1354,7 +1380,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(44<<8)|11
+		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+3
 		call disp_text
 		
 		ld a,(memdump_sz)
@@ -1377,7 +1403,7 @@ not_qwerty:
 		ld (keyb_layout_offset),hl
 		ld	hl,txt_azerty
 keyb_set:
-		ld de,(52<<8)|8
+		ld de,L_KEYBOARDTYPE        
 		call disp_text
 		
 		; draw menu items
@@ -1534,12 +1560,12 @@ save_snap:
 		ld de,L_SAVESNAPSHOT
 		call disp_text
 		ld iy,key_translate
-		ld ix,(16<<8)|60	; xpos=16, max_len = 60
+		ld ix,I_SAVESNAPSHOT
 		call get_input
 		cp 0
 		jp z,not_fire		; esc was pressed == cancel
 		ld hl,txt_save
-		ld de,(0<<8)|24
+		ld de,L_SAVING
 		call disp_text
 		;
 		ld hl,sna_fn
@@ -1577,12 +1603,12 @@ load_snap:
 		ld de,L_LOADSNAPSHOT
 		call disp_text
 		ld iy,key_translate
-		ld ix,(16<<8)|60	; xpos=16, max_len = 60
+		ld ix,I_LOADSNAPSHOT
 		call get_input
 		cp 0
 		jp z,not_fire		; esc was pressed == cancel
 		ld hl,txt_load
-		ld de,(0<<8)|24
+		ld de,L_LOADING
 		call disp_text
 		;
 		ld hl,sna_fn
@@ -1648,7 +1674,7 @@ poke_loop:
 		call disp_text
 		push ix
 		ld iy,key_poke_translate
-		ld ix,(6<<8)|4	; xpos=6, max_len = 4
+		ld ix,I_POKEADDRESS
 		call get_input
 		pop ix
 		cp 0
@@ -1663,12 +1689,12 @@ poke_loop:
 		ld (ix+1),h
 		
 		ld hl,txt_val
-		ld de,(12<<8)|23
+		ld de,L_POKEVAL
 		call disp_text
 val_loop:
 		push ix
 		ld iy,key_poke_translate
-		ld ix,(17<<8)|2	; xpos=16, max_len = 2
+		ld ix,I_POKEVAL
 		call get_input
 		pop ix
 		cp 0
@@ -1699,7 +1725,7 @@ val_loop:
 		ld (iy+9),0
 		
 		ld	hl,temp_buf
-		ld de,(0<<8)|24
+		ld de,L_POKEAPPLIED
 		call disp_text
 		
 		
@@ -1721,7 +1747,7 @@ poke_done:
 		out (c),c
 		
 		ld hl,txt_applied
-		ld de,(0<<8)|24
+		ld de,L_POKEAPPLIED
 		call disp_text
 		call wait_return
 		call clear_lines
@@ -1735,7 +1761,7 @@ dispmem:
 		ld de,L_DISPMEM
 		call disp_text
 		ld iy,key_poke_translate
-		ld ix,(6<<8)|4	; xpos=6, max_len = 4
+		ld ix,I_DISPMEM
 		call get_input
 		cp 0
 		jp z,not_fire
@@ -1766,7 +1792,7 @@ conv_loop:
 		djnz conv_loop
 		ld (ix-4),0
 		ld hl,temp_buf
-		ld de,(0<<8)|24
+		ld de,L_DISPMEMDUMP
 		call disp_text
 	
 		jr not_fire
@@ -2922,7 +2948,7 @@ txt_i:
 txt_im:
 		db "IM ",0
 txt_pal:
-		db "Pall.",0,"PSG",0,"CRTC",0
+		db "Pal.",0,"PSG",0,"CRTC",0
 txt_rmr:
 		db "RMR",0,"MMR",0,"ROM",0
 txt_ppi:
