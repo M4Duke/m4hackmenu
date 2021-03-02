@@ -70,7 +70,7 @@ L_POKEAPPLIED               equ (0<<8)|24
 
 L_DISPMEM                   equ (0<<8)|23
 I_DISPMEM                   equ (6<<8)|4	; xpos=6, max_len = 4
-L_DISPMEMDUMP               equ (0<<8)|24
+L_DISPMEMDUMP               equ (0<<8)|20
 
 		org	0x0
 m4romnum: db 6
@@ -1751,82 +1751,13 @@ poke_done:
 		call disp_text
 		call wait_return
 		call clear_lines
-		jp not_fire
+		jr not_fire
 
 not_pokes:
 		cp #4			; disp mem
-		jp nz, not_dispmem
+		jr nz, not_dispmem
 dispmem:
-        ld hl,txt_address
-		ld de,L_DISPMEM
-		call disp_text
-		ld iy,key_poke_translate
-		ld ix,I_DISPMEM
-		call get_input
-		cp 0
-		jp z,not_fire
-		ld hl,sna_fn+1
-		ld a,(inum)
-		call ascii2bin
-		
-		ld (dispmem_offset),hl ; hl = memory offset
-		call readfile	       ; read 27 bytes hardcoded to temp_buf2
-		ld bc,0x7F8A
-		out (c),c
-
-
-outer_loop:
-		ld b,16           ; how many bytes to display
-		ld ix,temp_buf    ; printable text buffer hex
-        ld iy,temp_buf+54 ; printable text ascii
-		ld hl,temp_buf2   ; memory to dump
-
-        ld a,(dispmem_offset+1)
-        call conv_hex
-        ld (ix),d
-        ld (ix+1),e
-        ld a,(dispmem_offset)
-        call conv_hex
-        ld (ix+2),d
-        ld (ix+3),e
-        ld (ix+4),':'
-        ld (ix+5),' '
-        inc ix
-        inc ix
-        inc ix
-        inc ix
-        inc ix
-        inc ix
-
-conv_loop_hex:
-		push bc
-		ld a,(hl)
-		call conv_hex
-        cp 32
-        jr c,ko_to_print
-        cp 128
-        jr c,ok_to_print
-ko_to_print:        
-        ld a,'.'
-ok_to_print:        
-		ld (ix),d
-		ld (ix+1),e
-		ld (ix+2),32
-        ld (iy),a
-		inc ix
-		inc ix
-		inc ix
-        inc iy
-		inc hl
-		pop bc
-		djnz conv_loop_hex
-
-        ld (ix+53),32
-		ld (ix+71),0
-		ld hl,temp_buf
-		ld de,L_DISPMEMDUMP
-		call disp_text
-	
+        call display_memory
 		jr not_fire
 not_dispmem:		
 		cp #5
@@ -2463,6 +2394,8 @@ wait_key_released:
 		; e = line
 		; d = column
 disp_text:
+        push af
+        push bc
 		ex	de,hl
 		ld	c,h
 		push bc
@@ -2483,12 +2416,15 @@ mult_done:
 disp_loop:
 		ld	a,(hl)
 		or	a
-		ret	z
-		
+        jr z,end_disp_loop
 		call write_char
 		inc	de
 		inc	hl
 		jr disp_loop
+end_disp_loop:
+        pop bc
+        pop af
+        ret
 
 idisp_text:
 		ex	de,hl
@@ -2749,8 +2685,102 @@ app_poke_loop:
 		out	(c),c
 		ret
 
-		; hl = offset
+display_memory:
+        ld hl,txt_address
+		ld de,L_DISPMEM
+		call disp_text
+		ld iy,key_poke_translate
+		ld ix,I_DISPMEM
+		call get_input
+		cp 0
+		jp z,not_fire
+		ld hl,sna_fn+1
+		ld a,(inum)
+		call ascii2bin
 		
+		ld (dispmem_offset),hl ; hl = memory offset
+		call readfile	       ; read 64 bytes hardcoded to temp_buf2
+		ld bc,0x7F8A
+		out (c),c
+
+        ld hl,L_DISPMEMDUMP
+        ld (dispmem_line),hl
+
+        ld hl,temp_buf2   ; memory to dump
+        xor a
+outer_loop:
+		push af
+        push bc
+        push hl        
+        
+		ld ix,temp_buf    ; printable text buffer hex
+        ld iy,temp_buf+54 ; printable text ascii		
+
+        ld a,(dispmem_offset+1)
+        call conv_hex
+        ld (ix),d
+        ld (ix+1),e
+        ld a,(dispmem_offset)
+        call conv_hex
+        ld (ix+2),d
+        ld (ix+3),e
+        ld (ix+4),':'
+        ld (ix+5),' '
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+
+        ld b,16           ; how many bytes to display
+conv_loop_hex:
+		push bc
+		ld a,(hl)
+		call conv_hex
+        cp 32
+        jr c,ko_to_print
+        cp 128
+        jr c,ok_to_print
+ko_to_print:        
+        ld a,'.'
+ok_to_print:        
+		ld (ix),d
+		ld (ix+1),e
+		ld (ix+2),32
+        ld (iy),a
+		inc ix
+		inc ix
+		inc ix
+        inc iy
+		inc hl
+		pop bc
+		djnz conv_loop_hex
+
+        ld (ix+53),32
+		ld (ix+70),0
+		ld hl,temp_buf
+		ld de,(dispmem_line)
+		push de
+        call disp_text
+        pop de
+        inc de
+        ld (dispmem_line),de
+
+        ld bc,0x10              ; prepare next row
+        ld hl,(dispmem_offset)  ; offset + 16 bytes
+        add hl,bc
+        ld (dispmem_offset),hl
+        pop hl                  ; next 16 bytes in buffer
+        add hl,bc        
+        pop bc
+        pop af
+        inc a
+        cp 5
+        ret z
+        jp outer_loop
+
+		; hl = offset		
 readfile:
 		push hl
 		; open file for read and write
@@ -2807,7 +2837,7 @@ rsendloop4:
 		out	(c),a		
 		pop de		
 		out	(c),e			; fd
-		ld a,27
+		ld a,64
 		out	(c),a			; size 26
 		xor a
 		out	(c),a			; size
@@ -2820,7 +2850,7 @@ rsendloop4:
 		ld de,8
 		add	hl,de						; point to response data
 		ld de,temp_buf2
-		ld bc,27
+		ld bc,64
 		ldir
 		pop de
 		; close file
@@ -3111,6 +3141,8 @@ last_scr_y:	dw 0
 scr_pos_input: dw 0
 keyb_layout_offset: dw 0
 sna_fn:	ds 64
+
+dispmem_line: dw 0
 dispmem_offset: dw 0
 
 keymap: ds 10
