@@ -1751,11 +1751,11 @@ poke_done:
 		call disp_text
 		call wait_return
 		call clear_lines
-		jr not_fire
+		jp not_fire
 
 not_pokes:
 		cp #4			; disp mem
-		jr nz, not_dispmem
+		jp nz, not_dispmem
 dispmem:
         ld hl,txt_address
 		ld de,L_DISPMEM
@@ -1769,16 +1769,35 @@ dispmem:
 		ld a,(inum)
 		call ascii2bin
 		
-		; hl = offset
-		call readfile	; read 27 bytes hardcoded to temp_buf2
+		ld (dispmem_offset),hl ; hl = memory offset
+		call readfile	       ; read 27 bytes hardcoded to temp_buf2
 		ld bc,0x7F8A
 		out (c),c
+
 
 outer_loop:
 		ld b,16           ; how many bytes to display
 		ld ix,temp_buf    ; printable text buffer hex
-        ld iy,temp_buf+48 ; printable text ascii
+        ld iy,temp_buf+54 ; printable text ascii
 		ld hl,temp_buf2   ; memory to dump
+
+        ld a,(dispmem_offset+1)
+        call conv_hex
+        ld (ix),d
+        ld (ix+1),e
+        ld a,(dispmem_offset)
+        call conv_hex
+        ld (ix+2),d
+        ld (ix+3),e
+        ld (ix+4),':'
+        ld (ix+5),' '
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+        inc ix
+
 conv_loop_hex:
 		push bc
 		ld a,(hl)
@@ -1802,8 +1821,8 @@ ok_to_print:
 		pop bc
 		djnz conv_loop_hex
 
-        ld (ix+47),32
-		ld (ix+65),0
+        ld (ix+53),32
+		ld (ix+71),0
 		ld hl,temp_buf
 		ld de,L_DISPMEMDUMP
 		call disp_text
@@ -3092,6 +3111,7 @@ last_scr_y:	dw 0
 scr_pos_input: dw 0
 keyb_layout_offset: dw 0
 sna_fn:	ds 64
+dispmem_offset: dw 0
 
 keymap: ds 10
 temp_buf:
