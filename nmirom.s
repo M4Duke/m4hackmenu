@@ -24,9 +24,22 @@ FA_CREATE_NEW				equ 4
 FA_CREATE_ALWAYS			equ 8
 FA_OPEN_ALWAYS				equ 16
 FA_REALMODE					equ 128
-DATAPORT equ 0xFE00
-ACKPORT equ 0xFC00
+DATAPORT                    equ 0xFE00
+ACKPORT                     equ 0xFC00
 ;snamem equ 0xF300
+
+; screen layout (column<<8)|line
+L_MAINTITLE                 equ (29<<8)|0
+L_Z80TITLE                  equ (8<<8)|2
+L_MENU_X                    equ 0
+L_MENU_Y                    equ 13
+L_MENU                      equ (L_MENU_X+3<<8)|L_MENU_Y
+L_SAVESNAPSHOT              equ (0<<8)|23
+L_LOADSNAPSHOT              equ (0<<8)|23
+L_DUMPSIZE                  equ (L_MENU_X+3+20<<8)|L_MENU_Y+2
+L_POKEADDRESS               equ (0<<8)|23
+L_DISPMEM                   equ (0<<8)|23
+
 
 		org	0x0
 m4romnum: db 6
@@ -1115,13 +1128,13 @@ interface:
 		ld (keyb_layout_offset),hl
 		
 		ld	hl,txt_title
-		ld	de,(29<<8)|0
+		ld	de,L_MAINTITLE
 		call disp_text
 		
 		; Display all z80 registers
 		
 		ld hl,txt_z80regs
-		ld de,(8<<8)|2
+		ld de,L_Z80TITLE
 		call disp_text
 
 		ld ix,temp_buf			; use some temp ram area
@@ -1225,8 +1238,7 @@ columns:
 		inc d
 		djnz columns
 		
-		; display Pall, PSG, CRTC
-		
+		; display Palette, PSG, CRTC		
 		ld hl,txt_pal
 		ld de,(24<<8)|4
 		call disp_text
@@ -1237,8 +1249,7 @@ columns:
 		ld de,(24<<8)|6
 		call disp_text
 		
-		; Display palette
-		
+		; Display palette		
 		ld hl,temp_buf
 		
 		ld de,(30<<8)|4
@@ -1354,9 +1365,8 @@ columns:
 not64sz:
 		ld	hl,txt_128KB
 dumpsz_set:
-		ld de,(0<<8)|12
-		call disp_text
-		
+		ld de,L_DUMPSIZE
+		call disp_text		
 		ld a,(keyb_layout)
 		cp 37				; french
 		jr	z, not_qwerty
@@ -1367,13 +1377,13 @@ not_qwerty:
 		ld (keyb_layout_offset),hl
 		ld	hl,txt_azerty
 keyb_set:
-		ld de,(0<<8)|13
+		ld de,(52<<8)|8
 		call disp_text
 		
 		; draw menu items
 		ld b,6
 		ld hl,txt_menu
-		ld de,(33<<8)|15
+		ld de,L_MENU
 menuloop:
 		push bc
 		push de
@@ -1494,56 +1504,15 @@ not_top_item:
 		jr press_registered
 
 not_up:		
-			jr draw_pointer
+		call draw_pointer
+        jr skip_frame
+
 press_registered:
 		ld (ypos),a		
         call clear_pointer
-	
-draw_pointer:
-		ld de,0xC000 + 15*80 + 30
-		ld a,(ypos)
-		cp 0
-		jr z,is_first_item
-		ld bc,80
-		ld hl,0
-yline:	add hl,bc
-		dec a
-		jr nz,yline
-		add hl,de
-		ex de,hl
-is_first_item:	
-		ld (last_scr_y),de
-		;
-		ld b,3
-sel_anim:
-		push bc
-		push de
-		ld a,(anim_count)
-		ld h,'>'
-		cp b
-		jr nz, not_b
-		ld h,' '
-not_b:
-		ex af,af'	;'
-		ld a,h
-		call write_char
-		pop de
-		pop bc
-		ld hl,1
-		add hl,de
-		ex de,hl
-		djnz sel_anim
-	
-		ld a,(anim_count)
-		inc a
-		cp 4
-		jr nz, not_4
-		xor a
-not_4:
-		ld (anim_count),a
+        call draw_pointer
 		
 skip_frame:
-
 		; check if FIRE or SPACE or RETURN is pressed
 		ld a,(keymap+9)
 		and 0x40		; joy fire 2
@@ -1562,7 +1531,7 @@ is_fire:
 save_snap:
 		call clear_lines
 		ld hl,txt_filename
-		ld de,(0<<8)|23
+		ld de,L_SAVESNAPSHOT
 		call disp_text
 		ld iy,key_translate
 		ld ix,(16<<8)|60	; xpos=16, max_len = 60
@@ -1605,7 +1574,7 @@ not_save_snap:
 load_snap:
 		call clear_lines
 		ld hl,txt_filename
-		ld de,(0<<8)|23
+		ld de,L_LOADSNAPSHOT
 		call disp_text
 		ld iy,key_translate
 		ld ix,(16<<8)|60	; xpos=16, max_len = 60
@@ -1658,9 +1627,8 @@ not_set_64:
 		ld e,64
 		ld	hl,txt_64KB
 dump_size_set:
-		call set_dump_size
-		
-		ld de,(0<<8)|12
+		call set_dump_size		
+		ld de,L_DUMPSIZE
 		call disp_text
 		call wait_return_released
 		jp not_fire
@@ -1676,7 +1644,7 @@ pokes:	ld ix,temp_buf2
 poke_loop:
 		
 		ld hl,txt_address
-		ld de,(0<<8)|23
+		ld de,L_POKEADDRESS
 		call disp_text
 		push ix
 		ld iy,key_poke_translate
@@ -1764,7 +1732,7 @@ not_pokes:
 		jr nz, not_dispmem
 dispmem:
         ld hl,txt_address
-		ld de,(0<<8)|23
+		ld de,L_DISPMEM
 		call disp_text
 		ld iy,key_poke_translate
 		ld ix,(6<<8)|4	; xpos=6, max_len = 4
@@ -2883,6 +2851,58 @@ clear_pointer:
         pop de
         ret
 
+draw_pointer:
+        push af
+        push bc
+        push de
+        push hl
+		ld de,0xC000 + L_MENU_Y*80 + L_MENU_X
+		ld a,(ypos)
+		cp 0
+		jr z,is_first_item
+		ld bc,80
+		ld hl,0
+yline:	add hl,bc
+		dec a
+		jr nz,yline
+		add hl,de
+		ex de,hl
+is_first_item:	
+		ld (last_scr_y),de
+		;
+		ld b,3
+sel_anim:
+		push bc
+		push de
+		ld a,(anim_count)
+		ld h,'>'
+		cp b
+		jr nz, not_b
+		ld h,' '
+not_b:
+		ex af,af'	;'
+		ld a,h
+		call write_char
+		pop de
+		pop bc
+		ld hl,1
+		add hl,de
+		ex de,hl
+		djnz sel_anim
+	
+		ld a,(anim_count)
+		inc a
+		cp 4
+		jr nz, not_4
+		xor a
+not_4:
+		ld (anim_count),a
+        pop hl
+        pop de
+        pop bc
+        pop af        
+        ret
+
 txt_title:
 		db "M4 Hack Menu / Duke "
         TIMESTAMP
@@ -2910,14 +2930,14 @@ txt_ppi:
 txt_ints:
 		db "INT",0
 txt_64KB:
-		db "Dump size: 64KB ",0
+		db "64K ",0
 txt_128KB:
-		db "Dump size: 128KB",0
+		db "128K",0
 txt_menu:
 		db "(S)ave snapshot",0
 		db "(L)oad snapshot",0
-		db "(C)hange dump size",0
-		db "(P)okes...",0
+		db "(C)hange dump size:",0
+		db "(P)okes",0
 		db "(D)isplay memory",0
 		db "(R)esume",0
 txt_filename:
