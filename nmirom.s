@@ -1773,24 +1773,37 @@ dispmem:
 		call readfile	; read 27 bytes hardcoded to temp_buf2
 		ld bc,0x7F8A
 		out (c),c
-		
-		ld b,28
-		ld ix,temp_buf
-		ld hl,temp_buf2
-conv_loop:
+
+outer_loop:
+		ld b,16           ; how many bytes to display
+		ld ix,temp_buf    ; printable text buffer hex
+        ld iy,temp_buf+48 ; printable text ascii
+		ld hl,temp_buf2   ; memory to dump
+conv_loop_hex:
 		push bc
 		ld a,(hl)
 		call conv_hex
+        cp 32
+        jr c,ko_to_print
+        cp 128
+        jr c,ok_to_print
+ko_to_print:        
+        ld a,'.'
+ok_to_print:        
 		ld (ix),d
 		ld (ix+1),e
 		ld (ix+2),32
+        ld (iy),a
 		inc ix
 		inc ix
 		inc ix
+        inc iy
 		inc hl
 		pop bc
-		djnz conv_loop
-		ld (ix-4),0
+		djnz conv_loop_hex
+
+        ld (ix+47),32
+		ld (ix+65),0
 		ld hl,temp_buf
 		ld de,L_DISPMEMDUMP
 		call disp_text
@@ -2350,6 +2363,8 @@ line_ok:
 		; exit
 		; DE = ascii hex
 conv_hex:
+        push af
+        push bc
 		ld	b,a
 		srl	a
 		srl	a
@@ -2367,6 +2382,8 @@ conv_hex:
 		adc	0x40
 		daa
 		ld e,a
+        pop bc
+        pop af
 		ret
 
 keyscan:		
