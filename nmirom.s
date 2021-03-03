@@ -32,22 +32,21 @@ ACKPORT                     equ 0xFC00
 L_MAINTITLE                 equ (51<<8)|24
 L_Z80_REGSTITLE             equ (L_Z80_REGS_X<<8)|L_Z80_REGS_Y
 L_Z80_REGS_X                equ 60
-L_Z80_REGS_Y                equ 0
+L_Z80_REGS_Y                equ 6
 
 L_HW_REGS_X                 equ 0
-L_HW_REGS_Y                 equ 0
+L_HW_REGS_Y                 equ 6
 
 L_HW_REGSHEADER             equ (L_HW_REGS_X+6<<8)|L_HW_REGS_Y
 L_HW_REGS                   equ (L_HW_REGS_X<<8)|L_HW_REGS_Y+2
 
 L_HW_RMR_MMR_ROM_X          equ 60
-L_HW_RMR_MMR_ROM_Y          equ 11
+L_HW_RMR_MMR_ROM_Y          equ 17
 
 L_HW_PPI_X                  equ 71
-L_HW_PPI_Y                  equ 11
+L_HW_PPI_Y                  equ 17
 
-L_KEYBOARDTYPE              equ (60<<8)|16
-L_BUILD                     equ (60<<8)|17
+L_KEYBOARDTYPE              equ (60<<8)|22
 
 L_MENU_X                    equ 0
 L_MENU_Y                    equ 13
@@ -71,7 +70,7 @@ L_POKEAPPLIED               equ (0<<8)|24
 
 L_DISPMEM                   equ (0<<8)|23
 I_DISPMEM                   equ (6<<8)|4	; xpos=6, max_len = 4
-L_DISPMEMDUMP               equ (0<<8)|6
+L_DISPMEMDUMP               equ (0<<8)|0
 
 		org	0x0
 m4romnum: db 6
@@ -3013,8 +3012,7 @@ txt_title:
         ENDIF
         db 0
 			
-txt_build
-        
+txt_build        
         db 0
 
 txt_z80regs:
