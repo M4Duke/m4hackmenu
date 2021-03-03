@@ -1438,17 +1438,15 @@ menuloop:
 		ld de,0xC000 + 15*80 + 30
 		ld (last_scr_y),de
 
-
-		; make sure space or fire is not already pressed
-		
-release_space:
-		
+		; make sure space or fire is not already pressed		
+release_space:		
 		call keyscan
 		ld a,(keymap+5)
 		and 0x80		; is it space
 		;jr	z,release_space		
 		
-		
+        ld hl,0
+        call display_memory
 mainloop:
 
 		ld b,0xf5
@@ -1755,7 +1753,7 @@ not_pokes:
 		cp #4			; disp mem
 		jr nz, not_dispmem
 dispmem:
-        call display_memory
+        call display_memory_input
 		jr not_fire
 not_dispmem:		
 		cp #5
@@ -2694,7 +2692,7 @@ app_poke_loop:
 ;
 ; DISPLAY MEMORY
 ; 
-display_memory:
+display_memory_input:
         ld hl,txt_address
 		ld de,L_DISPMEM
 		call disp_text
@@ -2705,7 +2703,8 @@ display_memory:
 		ld hl,sna_fn+1
 		ld a,(inum)
 		call ascii2bin
-		
+
+display_memory:		
 		ld (dispmem_offset),hl ; hl = memory offset
 		call readfile	       ; read 64 bytes hardcoded to temp_buf2
 		ld bc,0x7F8A
