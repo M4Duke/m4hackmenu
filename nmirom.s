@@ -46,7 +46,7 @@ L_HW_RMR_MMR_ROM_Y          equ 17
 L_HW_PPI_X                  equ 71
 L_HW_PPI_Y                  equ 17
 
-L_KEYBOARDTYPE              equ (60<<8)|22
+L_KEYBOARDTYPE              equ (60<<8)|20
 
 L_MENU_X                    equ 0
 L_MENU_Y                    equ 13
@@ -3053,9 +3053,9 @@ txt_save:
 txt_load:
 		db "Loading:",0
 txt_qwerty:
-		db "Keyboard: QWERTY",0
+		db "KEYB   QW",0
 txt_azerty:
-		db "Keyboard: AZERTY",0
+		db "KEYB   AZ",0
 txt_success:
 		db "  Success!",0
 txt_failed:
