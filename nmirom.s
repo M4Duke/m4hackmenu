@@ -29,24 +29,25 @@ ACKPORT                     equ 0xFC00
 ;snamem equ 0xF300
 
 ; screen layout (column<<8)|line
-L_MAINTITLE                 equ (29<<8)|0
-L_Z80_REGSTITLE             equ (8<<8)|2
-L_Z80_REGS_X                equ 0
-L_Z80_REGS_Y                equ 4
+L_MAINTITLE                 equ (51<<8)|24
+L_Z80_REGSTITLE             equ (L_Z80_REGS_X<<8)|L_Z80_REGS_Y
+L_Z80_REGS_X                equ 60
+L_Z80_REGS_Y                equ 0
 
-L_HW_REGS_X                 equ 24
-L_HW_REGS_Y                 equ 2
+L_HW_REGS_X                 equ 0
+L_HW_REGS_Y                 equ 0
 
 L_HW_REGSHEADER             equ (L_HW_REGS_X+6<<8)|L_HW_REGS_Y
 L_HW_REGS                   equ (L_HW_REGS_X<<8)|L_HW_REGS_Y+2
 
-L_HW_RMR_MMR_ROM_X          equ 24
-L_HW_RMR_MMR_ROM_Y          equ 8
+L_HW_RMR_MMR_ROM_X          equ 60
+L_HW_RMR_MMR_ROM_Y          equ 11
 
-L_HW_PPI_X                  equ 38
-L_HW_PPI_Y                  equ 8
+L_HW_PPI_X                  equ 71
+L_HW_PPI_Y                  equ 11
 
-L_KEYBOARDTYPE              equ (52<<8)|8
+L_KEYBOARDTYPE              equ (60<<8)|16
+L_BUILD                     equ (60<<8)|17
 
 L_MENU_X                    equ 0
 L_MENU_Y                    equ 13
@@ -70,7 +71,7 @@ L_POKEAPPLIED               equ (0<<8)|24
 
 L_DISPMEM                   equ (0<<8)|23
 I_DISPMEM                   equ (6<<8)|4	; xpos=6, max_len = 4
-L_DISPMEMDUMP               equ (0<<8)|20
+L_DISPMEMDUMP               equ (0<<8)|6
 
 		org	0x0
 m4romnum: db 6
@@ -1171,29 +1172,29 @@ interface:
 		ld ix,temp_buf			; use some temp ram area
 
 		ld hl,txt_regs1
-		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+2
 		ld iy,cpu_regs
 		ld b,4
 		call disp_regs			; display AF, BC, DE, HL
 		
-		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+4
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+6
 		ld iy,sna_header+0x21	; point to SP
 		ld b,2
 		call disp_regs			; display SP, PC
 		
-		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+2
 		ld b,4
 		inc iy					; point to alt AF....
 		call disp_regs			; display alt AF, BC, DE, HL
 		
-		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+4
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+6
 		ld iy,sna_header+0x1D	; point to IX
 		ld b,2
 		call disp_regs			; display IX,IY
 		
 		; display 8 bit regs R, I		
 		ld	hl,txt_r
-		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+6
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+8
 		call disp_text
 		ld a,(sna_header+0x19)
 		call conv_hex
@@ -1201,41 +1202,41 @@ interface:
 		ld (ix+1),e
 		ld (ix+2),0
 		ld	hl,temp_buf
-		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+6
+		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+8
 		call disp_text
 		
 		ld	hl,txt_i
-		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+6
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+8
 		call disp_text
 		ld a,(sna_header+0x1A)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+6
+		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+8
 		call disp_text
 		
 		; Display interrupt mode		
 		ld	hl,txt_im
-		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+7
+		ld de,(L_Z80_REGS_X<<8)|L_Z80_REGS_Y+9
 		call disp_text
 		ld a,(sna_header+0x25)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+7
+		ld de,(L_Z80_REGS_X+7<<8)|L_Z80_REGS_Y+9
 		call disp_text
 		
 		ld	hl,txt_ints
-		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+7
+		ld de,(L_Z80_REGS_X+11<<8)|L_Z80_REGS_Y+9
 		call disp_text
 		ld a,(sna_header+0x1B)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+7
+		ld de,(L_Z80_REGS_X+18<<8)|L_Z80_REGS_Y+9
 		call disp_text
 
 		; Display header columns 0 - 0x10
@@ -1310,13 +1311,12 @@ columns:
 		call disp_text
 		
 		; disp values
-		
 		ld a,(ga_multi)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y
+		ld de,(L_HW_RMR_MMR_ROM_X+7<<8)|L_HW_RMR_MMR_ROM_Y
 		call disp_text
 		
 		ld a,(ramconf)
@@ -1324,7 +1324,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y+1
+		ld de,(L_HW_RMR_MMR_ROM_X+7<<8)|L_HW_RMR_MMR_ROM_Y+1
 		call disp_text
 		
 		ld a,(romsel)
@@ -1332,7 +1332,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_HW_RMR_MMR_ROM_X+6<<8)|L_HW_RMR_MMR_ROM_Y+2
+		ld de,(L_HW_RMR_MMR_ROM_X+7<<8)|L_HW_RMR_MMR_ROM_Y+2
 		call disp_text
 		
 		; Display PPIA,B,C, PPICTRL
@@ -1350,13 +1350,12 @@ columns:
 		call disp_text
 		
 		; disp PPI values
-		
 		ld a,(ppiA)
 		call conv_hex
 		ld (ix+0),d
 		ld (ix+1),e
 		ld	hl,temp_buf
-		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y
+		ld de,(L_HW_PPI_X+7<<8)|L_HW_PPI_Y
 		call disp_text
 		
 		ld a,(ppiB)
@@ -1364,7 +1363,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+1
+		ld de,(L_HW_PPI_X+7<<8)|L_HW_PPI_Y+1
 		call disp_text
 		
 		ld a,(ppiC)
@@ -1372,7 +1371,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+2
+		ld de,(L_HW_PPI_X+7<<8)|L_HW_PPI_Y+2
 		call disp_text
 		
 		ld a,(ppiCtrl)
@@ -1380,7 +1379,7 @@ columns:
 		ld (ix+0),d
 		ld (ix+1),e
 		ld hl,temp_buf
-		ld de,(L_HW_PPI_X+6<<8)|L_HW_PPI_Y+3
+		ld de,(L_HW_PPI_X+7<<8)|L_HW_PPI_Y+3
 		call disp_text
 		
 		ld a,(memdump_sz)
@@ -3006,13 +3005,15 @@ not_4:
         ret
 
 txt_title:
-		db "M4 Hack Menu / Duke "
-        TIMESTAMP
+		db "M4 Hack Menu / Duke 2018-2021"        
         db 0
 			
+txt_build
+        db "Build 99.99.99.9999"
+        db 0
+
 txt_z80regs:
 		db "Z80 regs",0
-
 
 txt_regs1:
 		db "AF ",0,"BC ",0,"DE ",0,"HL ",0,"SP ",0,"PC ",0
