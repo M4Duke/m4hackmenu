@@ -3005,11 +3005,16 @@ not_4:
         ret
 
 txt_title:
-		db "M4 Hack Menu / Duke 2018-2021"        
+        IFDEF DEBUG
+            db "M4 Hack Dbg"
+            TIMESTAMP
+        ELSE
+    		db "M4 Hack Menu / Duke 2018-2021"
+        ENDIF
         db 0
 			
 txt_build
-        db "Build 99.99.99.9999"
+        
         db 0
 
 txt_z80regs:
