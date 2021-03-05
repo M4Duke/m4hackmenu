@@ -1871,6 +1871,7 @@ cur_blank:
         ld a,'_'
 disp_cur:
         ld de,(scr_pos_input)
+        ld c,0
         call write_char
             
     ;	ld a,(frame_count)
@@ -1992,6 +1993,7 @@ char_found:
         ld de,(scr_pos_input)
         ld a,' '
         push de
+        ld c,0
         call write_char
         pop de
         dec de
@@ -2025,6 +2027,7 @@ not_esc:
         
         ld de,(scr_pos_input)
         ld a,' '
+        ld c,0
         call write_char
         ; wait for release of return
 rel_return:
@@ -2057,6 +2060,7 @@ not_return:
         ld de,(scr_pos_input)
         
         push de
+        ld c,0
         call write_char
         pop de
         inc de
@@ -2126,9 +2130,13 @@ column_loop:
         cp d
         jr nz,not_inv
 
-		;call idisp_text
-		;jr was_inv
-not_inv:		
+        ld a,1
+        ld (inv_video_flag),a
+        call disp_text
+        dec a
+        ld (inv_video_flag),a
+		jr was_inv
+not_inv:
         call disp_text
 was_inv:
         pop de
@@ -2272,50 +2280,6 @@ cmd_open3:	db 16
             db C_OPEN&0xFF, C_OPEN>>8, FA_READ | FA_WRITE | FA_REALMODE
             db "/m4/tmp1.bin",0
 
-        ; a = char
-        ; de = screen address
-write_char:
-        push hl
-        push de
-        sub	32
-        ld	l,a
-        ld	h,0
-        add	hl,hl	; * 2
-        add	hl,hl	; * 4
-        add	hl,hl	; * 8
-        ld	bc,cpc_font
-        add	hl,bc
-        ld	b,8
-hloop:
-        ld	a,(hl)
-        ld	(de),a
-        ld	a,d
-        add	8
-        ld	d,a
-        and	0x38
-        jr	nz,line_ok
-        ld	a,d
-        sub	0x40
-        ld	d,a
-        ld	a,e
-        add	80		; SCREEN_WIDTH
-        ld	e,a
-        jr	nc, line_ok
-        inc	d
-        ld	a,d
-        and	7
-        jr	nz, line_ok
-        ld	a,d
-        sub	8
-        ld	d,a	
-line_ok:
-
-        inc	hl
-        djnz	hloop
-        pop de
-        pop hl
-        ret
-
         ; entry 
         ; A
         ; exit
@@ -2432,13 +2396,14 @@ disp_loop:
         jr nz,inv_char
 
         ld a,(hl)
+        ld c,0
         call write_char
         jr cont_loop
 inv_char:
         ld a,(hl)
-        call iwrite_char
+        ld c,255                ; force inv video
+        call write_char         ; can be used always instead of write_char
         jr cont_loop
-
 inv_video:
         ld a,(inv_video_flag)
         xor 1
@@ -2454,10 +2419,12 @@ end_disp_loop:
         ret
 
         ; a = char
+        ; c = inv video if 255
         ; de = screen address
-iwrite_char:
+write_char:        
         push hl
         push de
+        push bc
         sub	32
         ld	l,a
         ld	h,0
@@ -2466,33 +2433,37 @@ iwrite_char:
         add	hl,hl	; * 8
         ld	bc,cpc_font
         add	hl,bc
+        pop bc
         ld	b,8
-ihloop:
-        ld	a,(hl)
-        xor 255
-        ld	(de),a
+hloop:
+        ld a,c
+        inc a           ; check for video inversion
+        ld a,(hl)
+        jr nz,no_inv
+        xor 255         ; inv video
+no_inv: ld	(de),a
         ld	a,d
         add	8
         ld	d,a
         and	0x38
-        jr	nz,iline_ok
+        jr	nz,line_ok
         ld	a,d
         sub	0x40
         ld	d,a
         ld	a,e
         add	80		; SCREEN_WIDTH
         ld	e,a
-        jr	nc, iline_ok
+        jr	nc, line_ok
         inc	d
         ld	a,d
         and	7
-        jr	nz, iline_ok
+        jr	nz, line_ok
         ld	a,d
         sub	8
         ld	d,a	
-iline_ok:
+line_ok:
         inc	hl
-        djnz	ihloop
+        djnz	hloop
         pop de
         pop hl
         ret
@@ -2957,11 +2928,13 @@ menu_key_pressed:
         ret
 
 clear_pointer:
+        push bc
         push de
-        push af        
+        push af                
         ld de,(last_scr_y)
         push de
         ld a,' '
+        ld c,0
         call write_char
         pop de
         inc de
@@ -2974,6 +2947,7 @@ clear_pointer:
         call write_char
         pop af
         pop de
+        pop bc
         ret
 
 draw_pointer:
@@ -2993,8 +2967,7 @@ yline:	add hl,bc
         add hl,de
         ex de,hl
 is_first_item:	
-        ld (last_scr_y),de
-        ;
+        ld (last_scr_y),de        
         ld b,3
 sel_anim:
         push bc
@@ -3007,6 +2980,7 @@ sel_anim:
 not_b:
         ex af,af'	;'
         ld a,h
+        ld c,0
         call write_char
         pop de
         pop bc
