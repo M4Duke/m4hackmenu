@@ -1873,7 +1873,6 @@ cur_blank:
         ld a,'_'
 disp_cur:
         ld de,(scr_pos_input)
-        ld c,0
         call write_char
             
     ;	ld a,(frame_count)
@@ -1995,7 +1994,6 @@ char_found:
         ld de,(scr_pos_input)
         ld a,' '
         push de
-        ld c,0
         call write_char
         pop de
         dec de
@@ -2029,7 +2027,6 @@ not_esc:
         
         ld de,(scr_pos_input)
         ld a,' '
-        ld c,0
         call write_char
         ; wait for release of return
 rel_return:
@@ -2062,7 +2059,6 @@ not_return:
         ld de,(scr_pos_input)
         
         push de
-        ld c,0
         call write_char
         pop de
         inc de
@@ -2102,45 +2098,49 @@ clear_line:
         
         ; hl = txt ptr
         ; de = ypos,xpos
-        ; b = num columns
-        ; a = inv. column
+        ; iy = reference address
+        ; b = number of columns to display
+        ; a = column number for video inversion
 disp_columns:
-        ld c,b          ; num columns
-        ld b,a          ; inv columns
+        ld c,b          ; number of columns to display
+        ld b,a          ; column number for video inversion
         xor a
 ad3:
         add	3
-        djnz ad3        ; 
-        
+        djnz ad3        ; compute real column on screen
         add d           ;
-        ld b,c          ; num columns
-        ld c,a          ; 
+        ld b,c          ; number of columns to display
+        ld c,a          ; real column number on screen for video inversion
 column_loop:
         push bc
         push hl
         
         push de
-        ld a,(iy)
-        inc iy
-        call conv_hex
-        ld (ix+0),d
-        ld (ix+1),e
-        
-        pop de
-        push de
         ld a,c
         cp d
+        ld a,(iy)
         jr nz,not_inv
 
-        ld a,1
-        ld (inv_video_flag),a
-        call disp_text
-        dec a
-        ld (inv_video_flag),a
-		jr was_inv
+        inc iy
+        call conv_hex
+        ld a,d
+        or 128
+        ld d,a
+        ld a,e
+        or 128
+        ld e,a
+        jr cont
+        
 not_inv:
+        inc iy
+        call conv_hex
+
+cont:   ld (ix+0),d
+        ld (ix+1),e
+        pop de
+
+        push de
         call disp_text
-was_inv:
         pop de
         pop hl
         pop bc
@@ -2276,7 +2276,7 @@ cmd_open3:	db 16
             db "/m4/tmp1.bin",0
 
         ; entry 
-        ; A
+        ; A value to convert
         ; exit
         ; DE = ascii hex
 conv_hex:
@@ -2383,28 +2383,8 @@ disp_loop:
         ld	a,(hl)
         or	a
         jr z,end_disp_loop
-        cp 7            ; 7 is BELL in ASCII but also INV VIDEO in ANSI
-        jr z,inv_video
-
-        ld a,(inv_video_flag)
-        or a
-        jr nz,inv_char
-
         ld a,(hl)
-        ld c,0
         call write_char
-        jr cont_loop
-inv_char:
-        ld a,(hl)
-        ld c,255                ; force inv video
-        call write_char         ; can be used always instead of write_char
-        jr cont_loop
-inv_video:
-        ld a,(inv_video_flag)
-        xor 1
-        ld (inv_video_flag),a
-        dec de        
-cont_loop:
         inc	de
         inc	hl
         jr disp_loop
@@ -2414,7 +2394,6 @@ end_disp_loop:
         ret
 
         ; a = char, if bit 7 is set then inv video
-        ; if c = 255, then inv video as well
         ; de = screen address
 write_char:
         push bc
@@ -2425,8 +2404,11 @@ write_char:
         jr c, no_char_inv
         ld c,0xFF
         xor 0x80
+        jr wcont
 no_char_inv:
-        sub	32
+        ld c,0
+
+wcont:  sub	32
         ld	l,a
         ld	h,0
         add	hl,hl	; * 2
@@ -2950,7 +2932,6 @@ clear_pointer:
         ld de,(last_scr_y)
         push de
         ld a,' '
-        ld c,0
         call write_char
         pop de
         inc de
@@ -2996,7 +2977,6 @@ sel_anim:
 not_b:
         ex af,af'	;'
         ld a,h
-        ld c,0
         call write_char
         pop de
         pop bc
@@ -3028,7 +3008,6 @@ debug_a:
         ld a,d
         push de
         ld de,0xC277
-        ld c,255
         call write_char
         pop de
         ld a,e
@@ -3187,7 +3166,6 @@ cur_flash: db 0
 frame_count:db 0
 last_char: db 0
 inum: db 0
-inv_video_flag: db 0
 delay_char:db 0
 last_scr_y:	dw 0
 scr_pos_input: dw 0
