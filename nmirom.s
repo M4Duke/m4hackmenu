@@ -2712,7 +2712,9 @@ outer_loop:
         push hl        
         
         ld ix,temp_buf    ; printable text buffer hex
-        ld iy,temp_buf+54 ; printable text ascii		
+        ld (ix+53),32
+        ld iy,temp_buf+54 ; printable text ascii
+        ld (iy+16),0
 
         ld a,(dispmem_address+1)
         call conv_hex
@@ -2732,6 +2734,7 @@ outer_loop:
         inc ix
 
         ld b,16           ; how many bytes to display
+
 conv_loop_hex:
         push bc
         ld a,(hl)
@@ -2769,8 +2772,6 @@ no_highlight:
         inc c
         djnz conv_loop_hex
 
-        ld (ix+53),32
-        ld (ix+70),0
         ld hl,temp_buf
         ld de,(dispmem_line)
         push de
