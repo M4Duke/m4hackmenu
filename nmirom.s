@@ -46,7 +46,7 @@ L_HW_RMR_MMR_ROM_Y          equ 18
 L_HW_PPI_X                  equ 71
 L_HW_PPI_Y                  equ 18
 
-L_KEYBOARDTYPE              equ (60<<8)|20
+L_KEYBOARDTYPE              equ (60<<8)|21
 
 L_MENU_X                    equ 0
 L_MENU_Y                    equ 13
@@ -1447,7 +1447,7 @@ release_space:
         and 0x80		; is it space
         ;jr	z,release_space		
         
-        ld hl,0
+        ld hl,(sna_header+0x23)     ; display memory around PC
         call display_memory
 mainloop:
 
@@ -2998,6 +2998,7 @@ not_4:
         pop af        
         ret
 
+IFDEF DEBUG
 ; print reg A on screen
 debug_a:
         push af
@@ -3018,6 +3019,7 @@ debug_a:
         pop bc
         pop af
         ret
+ENDIF
 
 txt_title:
         IFDEF DEBUG
