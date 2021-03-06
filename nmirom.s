@@ -32,19 +32,19 @@ ACKPORT                     equ 0xFC00
 L_MAINTITLE                 equ (51<<8)|24
 L_Z80_REGSTITLE             equ (L_Z80_REGS_X<<8)|L_Z80_REGS_Y
 L_Z80_REGS_X                equ 60
-L_Z80_REGS_Y                equ 6
+L_Z80_REGS_Y                equ 7
 
 L_HW_REGS_X                 equ 0
-L_HW_REGS_Y                 equ 6
+L_HW_REGS_Y                 equ 7
 
 L_HW_REGSHEADER             equ (L_HW_REGS_X+6<<8)|L_HW_REGS_Y
 L_HW_REGS                   equ (L_HW_REGS_X<<8)|L_HW_REGS_Y+2
 
 L_HW_RMR_MMR_ROM_X          equ 60
-L_HW_RMR_MMR_ROM_Y          equ 17
+L_HW_RMR_MMR_ROM_Y          equ 18
 
 L_HW_PPI_X                  equ 71
-L_HW_PPI_Y                  equ 17
+L_HW_PPI_Y                  equ 18
 
 L_KEYBOARDTYPE              equ (60<<8)|20
 
@@ -71,6 +71,8 @@ L_POKEAPPLIED               equ (0<<8)|24
 L_DISPMEM                   equ (0<<8)|23
 I_DISPMEM                   equ (6<<8)|4	; xpos=6, max_len = 4
 L_DISPMEMDUMP               equ (0<<8)|0
+N_DISPMEM                   equ 6
+N_DISPMEMBYTES              equ N_DISPMEM*16
 
         org	0x0
 m4romnum: db 6
@@ -2362,7 +2364,7 @@ wait_key_released:
         call keyscan
         jr nokey_init
 
-        ; hl = text
+        ; hl = text address
         ; e = line
         ; d = column
 disp_text:
@@ -2418,19 +2420,26 @@ end_disp_loop:
         pop af
         ret
 
-        ; a = char
-        ; c = inv video if 255
+        ; a = char, if bit 7 is set then inv video
+        ; if c = 255, then inv video as well
         ; de = screen address
-write_char:        
+write_char:
+        push bc
         push hl
         push de
-        push bc
+                
+        cp 0x80
+        jr c, no_char_inv
+        ld c,0xFF
+        xor 0x80
+no_char_inv:
         sub	32
         ld	l,a
         ld	h,0
         add	hl,hl	; * 2
         add	hl,hl	; * 4
         add	hl,hl	; * 8
+        push bc
         ld	bc,cpc_font
         add	hl,bc
         pop bc
@@ -2440,7 +2449,7 @@ hloop:
         inc a           ; check for video inversion
         ld a,(hl)
         jr nz,no_inv
-        xor 255         ; inv video
+        xor c         ; inv video
 no_inv: ld	(de),a
         ld	a,d
         add	8
@@ -2466,9 +2475,8 @@ line_ok:
         djnz	hloop
         pop de
         pop hl
+        pop bc
         ret
-
-
 
         ; entry
         ; hl -> ascii value
@@ -2688,11 +2696,12 @@ display_memory:
         sla l
         sla l
         sla l
-        sla l
-        pop af
-        sub a, l
+        sla l                   ; round the address to the nearest 0x10 address
+        pop bc
+        ld a,c
+        sub a,l                 ; offset between required address and rounded address
 
-        ld (dispmem_offset),a   ; 
+        ld (dispmem_offset),a   ; keep the address offset to highlight the address that was required
         ld (dispmem_address),hl ; hl = memory address
 
         call readfile	       ; read 64 bytes hardcoded to temp_buf2
@@ -2702,11 +2711,11 @@ display_memory:
         ld hl,L_DISPMEMDUMP
         ld (dispmem_line),hl
 
-        ld hl,temp_buf2   ; memory to dump
-        xor a
+        ld hl,temp_buf2         ; memory to dump
+        xor a                   ; row number
+        ld c,0                  ; global memory offset
 outer_loop:
         push af
-        push bc
         push hl        
         
         ld ix,temp_buf    ; printable text buffer hex
@@ -2741,16 +2750,30 @@ conv_loop_hex:
 ko_to_print:        
         ld a,'.'
 ok_to_print:        
+        ld (iy),a               ; value as ascii 
+        ld a,(dispmem_offset)
+        cp c
+        jr nz,no_highlight
+
+        ld a,d
+        or 128
+        ld d,a
+        ld a,e
+        or 128
+        ld e,a
+
+no_highlight:
         ld (ix),d
         ld (ix+1),e
         ld (ix+2),32
-        ld (iy),a
+        
         inc ix
         inc ix
         inc ix
         inc iy
         inc hl
         pop bc
+        inc c
         djnz conv_loop_hex
 
         ld (ix+53),32
@@ -2769,10 +2792,9 @@ ok_to_print:
         ld (dispmem_address),hl
         pop hl                  ; next 16 bytes in buffer
         add hl,bc        
-        pop bc
         pop af
         inc a
-        cp 5
+        cp N_DISPMEM
         jp nz,outer_loop
         pop iy
         pop ix
@@ -2841,8 +2863,8 @@ rsendloop4:
         out	(c),a		
         pop de		
         out	(c),e			; fd
-        ld a,64
-        out	(c),a			; size 26
+        ld a,N_DISPMEMBYTES
+        out	(c),a			; size 
         xor a
         out	(c),a			; size
         ld	b,ACKPORT>>8	; kick command
@@ -2854,7 +2876,7 @@ rsendloop4:
         ld de,8
         add	hl,de						; point to response data
         ld de,temp_buf2
-        ld bc,64
+        ld bc,N_DISPMEMBYTES
         ldir
         pop de
         ; close file
@@ -3000,6 +3022,28 @@ not_4:
         pop de
         pop bc
         pop af        
+        ret
+
+; print reg A on screen
+debug_a:
+        push af
+        push bc
+        push de
+        push hl
+        call conv_hex
+        ld a,d
+        push de
+        ld de,0xC277
+        ld c,255
+        call write_char
+        pop de
+        ld a,e
+        ld de,0xC278
+        call write_char
+        pop hl
+        pop de
+        pop bc
+        pop af
         ret
 
 txt_title:
